@@ -41,7 +41,7 @@ func TestRemoteWriteHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	appendable := &mockAppendable{}
-	handler := NewWriteHandler(nil, appendable)
+	handler := NewWriteHandler(nil, appendable, false)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
@@ -86,7 +86,7 @@ func TestOutOfOrderSample(t *testing.T) {
 	appendable := &mockAppendable{
 		latestSample: 100,
 	}
-	handler := NewWriteHandler(log.NewNopLogger(), appendable)
+	handler := NewWriteHandler(log.NewNopLogger(), appendable, false)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
@@ -111,7 +111,7 @@ func TestOutOfOrderExemplar(t *testing.T) {
 	appendable := &mockAppendable{
 		latestExemplar: 100,
 	}
-	handler := NewWriteHandler(log.NewNopLogger(), appendable)
+	handler := NewWriteHandler(log.NewNopLogger(), appendable, false)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
@@ -134,7 +134,7 @@ func TestOutOfOrderHistogram(t *testing.T) {
 	appendable := &mockAppendable{
 		latestHistogram: 100,
 	}
-	handler := NewWriteHandler(log.NewNopLogger(), appendable)
+	handler := NewWriteHandler(log.NewNopLogger(), appendable, false)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
@@ -153,7 +153,7 @@ func TestCommitErr(t *testing.T) {
 	appendable := &mockAppendable{
 		commitErr: fmt.Errorf("commit error"),
 	}
-	handler := NewWriteHandler(log.NewNopLogger(), appendable)
+	handler := NewWriteHandler(log.NewNopLogger(), appendable, false)
 
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
@@ -163,6 +163,48 @@ func TestCommitErr(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	require.Equal(t, "commit error\n", string(body))
+}
+
+func TestRemoteWriteHandlerReducedProtocol(t *testing.T) {
+	buf, _, err := buildReducedWriteRequest(writeRequestWithRefsFixture.Timeseries, writeRequestWithRefsFixture.StringSymbolTable, nil, nil)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest("", "", bytes.NewReader(buf))
+	require.NoError(t, err)
+
+	appendable := &mockAppendable{}
+	handler := NewWriteHandler(nil, appendable, true)
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	resp := recorder.Result()
+	require.Equal(t, http.StatusNoContent, resp.StatusCode)
+
+	i := 0
+	j := 0
+	k := 0
+	// the reduced write request is equivalent to the write request fixture.
+	// we can use it for
+	for _, ts := range writeRequestFixture.Timeseries {
+		labels := labelProtosToLabels(ts.Labels)
+		for _, s := range ts.Samples {
+			require.Equal(t, mockSample{labels, s.Timestamp, s.Value}, appendable.samples[i])
+			i++
+		}
+
+		for _, e := range ts.Exemplars {
+			exemplarLabels := labelProtosToLabels(e.Labels)
+			require.Equal(t, mockExemplar{labels, exemplarLabels, e.Timestamp, e.Value}, appendable.exemplars[j])
+			j++
+		}
+
+		for _, hp := range ts.Histograms {
+			h := HistogramProtoToHistogram(hp)
+			require.Equal(t, mockHistogram{labels, hp.Timestamp, h}, appendable.histograms[k])
+			k++
+		}
+	}
 }
 
 type mockAppendable struct {

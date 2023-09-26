@@ -30,19 +30,33 @@ import (
 type writeHandler struct {
 	logger     log.Logger
 	appendable storage.Appendable
+	// experimental feature, new remote write proto format
+	internFormat bool
 }
 
 // NewWriteHandler creates a http.Handler that accepts remote write requests and
 // writes them to the provided appendable.
-func NewWriteHandler(logger log.Logger, appendable storage.Appendable) http.Handler {
+func NewWriteHandler(logger log.Logger, appendable storage.Appendable, internFormat bool) http.Handler {
 	return &writeHandler{
-		logger:     logger,
-		appendable: appendable,
+		logger:       logger,
+		appendable:   appendable,
+		internFormat: internFormat,
 	}
 }
 
 func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req, err := DecodeWriteRequest(r.Body)
+	var err error
+	var req *prompb.WriteRequest
+	if h.internFormat {
+		var redReq *prompb.WriteRequestWithRefs
+		redReq, err = DecodeReducedWriteRequest(r.Body)
+		if err == nil {
+			req, err = ReducedWriteRequestToWriteRequest(redReq)
+		}
+	} else {
+		req, err = DecodeWriteRequest(r.Body)
+	}
+
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)

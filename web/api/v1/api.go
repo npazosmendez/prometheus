@@ -237,6 +237,7 @@ func NewAPI(
 	gatherer prometheus.Gatherer,
 	registerer prometheus.Registerer,
 	statsRenderer StatsRenderer,
+	remoteWriteReducedProto bool,
 ) *API {
 	a := &API{
 		QueryEngine:       qe,
@@ -271,7 +272,7 @@ func NewAPI(
 	}
 
 	if ap != nil {
-		a.remoteWriteHandler = remote.NewWriteHandler(logger, ap)
+		a.remoteWriteHandler = remote.NewWriteHandler(logger, ap, remoteWriteReducedProto)
 	}
 
 	return a
