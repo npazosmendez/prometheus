@@ -132,6 +132,7 @@ func createPrometheusAPI(q storage.SampleAndChunkQueryable) *route.Router {
 		prometheus.DefaultGatherer,
 		nil,
 		nil,
+		false, // Disable experimental reduce remote write proto support.
 	)
 
 	promRouter := route.New().WithPrefix("/api/v1")
