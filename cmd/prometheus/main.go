@@ -223,6 +223,48 @@ func (c *flagConfig) setFeatureListOptions(logger log.Logger) error {
 			case "rw-1-1-receiver-min":
 				c.web.EnableReceiverRemoteWrite11Min = true
 				level.Info(logger).Log("msg", "Experimental remote write 1.1 will be supported on the receiver end, sender can send this new protobuf format.")
+			case "rw-compression-snappy":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "snappy")
+				remote.UseAlgorithm = remote.Snappy
+			case "rw-compression-snappyalt":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "snappyalt")
+				remote.UseAlgorithm = remote.SnappyAlt
+			case "rw-compression-s2":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "s2")
+				remote.UseAlgorithm = remote.S2
+			case "rw-compression-zstd-fast":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "zstd-fast")
+				remote.UseAlgorithm = remote.ZstdFast
+			case "rw-compression-zstd-default":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "zstd-default")
+				remote.UseAlgorithm = remote.ZstdDefault
+			case "rw-compression-zstd-bestcomp":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "zstd-bestcomp")
+				remote.UseAlgorithm = remote.ZstdBestComp
+			case "rw-compression-gzip-fast":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "gzip-fast")
+				remote.UseAlgorithm = remote.GzipFast
+			case "rw-compression-gzip-comp":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "gzip-comp")
+				remote.UseAlgorithm = remote.GzipComp
+			case "rw-compression-lzw":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "lzw")
+				remote.UseAlgorithm = remote.Lzw
+			case "rw-compression-flate-fast":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "flate-fast")
+				remote.UseAlgorithm = remote.FlateFast
+			case "rw-compression-flate-comp":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "flate-comp")
+				remote.UseAlgorithm = remote.FlateComp
+			case "rw-compression-brotli-fast":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "brotli-fast")
+				remote.UseAlgorithm = remote.BrotliFast
+			case "rw-compression-brotli-comp":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "brotli-comp")
+				remote.UseAlgorithm = remote.BrotliComp
+			case "rw-compression-brotli-default":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "brotli-default")
+				remote.UseAlgorithm = remote.BrotliDefault
 			default:
 				level.Warn(logger).Log("msg", "Unknown option for --enable-feature", "option", o)
 			}

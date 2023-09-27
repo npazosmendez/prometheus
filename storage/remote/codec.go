@@ -879,7 +879,10 @@ func DecodeWriteRequest(r io.Reader) (*prompb.WriteRequest, error) {
 		return nil, err
 	}
 
-	reqBuf, err := snappy.Decode(nil, compressed)
+	comp := createComp()
+	reqBuf, err := comp.Decompress(compressed)
+	comp.Close()
+
 	if err != nil {
 		return nil, err
 	}
@@ -953,7 +956,9 @@ func DecodeReducedWriteRequest(r io.Reader) (*prompb.WriteRequestWithRefs, error
 		return nil, err
 	}
 
-	reqBuf, err := snappy.Decode(nil, compressed)
+	comp := createComp()
+	reqBuf, err := comp.Decompress(compressed)
+	comp.Close()
 	if err != nil {
 		return nil, err
 	}
