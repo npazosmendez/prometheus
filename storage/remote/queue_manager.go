@@ -24,7 +24,10 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
+	goSnappy "github.com/golang/snappy"
+	reS2 "github.com/klauspost/compress/s2"
 	reSnappy "github.com/klauspost/compress/snappy"
+	reZstd "github.com/klauspost/compress/zstd"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel"
@@ -1721,7 +1724,7 @@ func sendWriteRequestWithBackoff(ctx context.Context, cfg config.QueueConfig, l 
 	}
 }
 
-func buildWriteRequest(samples []prompb.TimeSeries, metadata []prompb.MetricMetadata, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
+func buildWriteRequestUncompressed(samples []prompb.TimeSeries, metadata []prompb.MetricMetadata, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
 	var highest int64
 	for _, ts := range samples {
 		// At the moment we only ever append a TimeSeries with a single sample or exemplar in it.
@@ -1750,17 +1753,77 @@ func buildWriteRequest(samples []prompb.TimeSeries, metadata []prompb.MetricMeta
 	if err != nil {
 		return nil, highest, err
 	}
+	return pBuf.Bytes(), highest, nil
+}
 
+func compressWriteRequestGoSnappy(bytes []byte, buf []byte) []byte {
 	// snappy uses len() to see if it needs to allocate a new slice. Make the
 	// buffer as long as possible.
 	if buf != nil {
 		buf = buf[0:cap(buf)]
 	}
-	compressed := reSnappy.Encode(buf, pBuf.Bytes())
+	compressed := goSnappy.Encode(buf, bytes)
+	return compressed
+}
+
+func compressWriteRequestSnappy(bytes []byte, buf []byte) []byte {
+	// snappy uses len() to see if it needs to allocate a new slice. Make the
+	// buffer as long as possible.
+	if buf != nil {
+		buf = buf[0:cap(buf)]
+	}
+	compressed := reSnappy.Encode(buf, bytes)
+	return compressed
+}
+
+func decompressWriteRequestGoSnappy(compressed []byte) ([]byte, error) {
+	uncompressed, err := goSnappy.Decode(nil, compressed)
+	return uncompressed, err
+}
+
+func decompressWriteRequestSnappy(compressed []byte) ([]byte, error) {
+	uncompressed, err := reSnappy.Decode(nil, compressed)
+	return uncompressed, err
+}
+
+func decompressWriteRequestS2(compressed []byte) ([]byte, error) {
+	uncompressed, err := reS2.Decode(nil, compressed)
+	return uncompressed, err
+}
+
+func compressWriteRequestS2(bytes []byte, buf []byte) []byte {
+	// snappy uses len() to see if it needs to allocate a new slice. Make the
+	// buffer as long as possible.
+	if buf != nil {
+		buf = buf[0:cap(buf)]
+	}
+	compressed := reS2.Encode(buf, bytes)
+	return compressed
+}
+
+func compressWriteRequestZstd(bytes []byte, buf []byte) []byte {
+	// snappy uses len() to see if it needs to allocate a new slice. Make the
+	// buffer as long as possible.
+	if buf != nil {
+		buf = buf[0:cap(buf)]
+	}
+	var encoder, _ = reZstd.NewWriter(nil, reZstd.WithEncoderLevel(reZstd.SpeedFastest))
+	compressed := encoder.EncodeAll(bytes, buf)
+	return compressed
+}
+
+func buildWriteRequest(samples []prompb.TimeSeries, metadata []prompb.MetricMetadata, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
+	// Build the uncompressed buffer
+	bytes, highest, err := buildWriteRequestUncompressed(samples, metadata, pBuf, buf)
+	if err != nil {
+		return nil, highest, err
+	}
+
+	compressed := compressWriteRequestSnappy(bytes, buf)
 	return compressed, highest, nil
 }
 
-func buildReducedWriteRequest(samples []prompb.ReducedTimeSeries, labels map[uint64]string, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
+func buildReducedWriteRequestUncompressed(samples []prompb.ReducedTimeSeries, labels map[uint64]string, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
 	var highest int64
 	for _, ts := range samples {
 		// At the moment we only ever append a TimeSeries with a single sample or exemplar in it.
@@ -1789,14 +1852,16 @@ func buildReducedWriteRequest(samples []prompb.ReducedTimeSeries, labels map[uin
 	if err != nil {
 		return nil, 0, err
 	}
+	return pBuf.Bytes(), highest, nil
+}
 
-	// snappy uses len() to see if it needs to allocate a new slice. Make the
-	// buffer as long as possible.
-	if buf != nil {
-		buf = buf[0:cap(buf)]
+func buildReducedWriteRequest(samples []prompb.ReducedTimeSeries, labels map[uint64]string, pBuf *proto.Buffer, buf []byte) ([]byte, int64, error) {
+	// Build the uncompressed buffer
+	bytes, highest, err := buildReducedWriteRequestUncompressed(samples, labels, pBuf, buf)
+	if err != nil {
+		return nil, highest, err
 	}
 
-	compressed := reSnappy.Encode(buf, pBuf.Bytes())
-
+	compressed := compressWriteRequestSnappy(bytes, buf)
 	return compressed, highest, nil
 }
