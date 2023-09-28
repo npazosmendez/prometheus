@@ -82,6 +82,7 @@ func init() {
 type Client struct {
 	remoteName string // Used to differentiate clients in metrics.
 	url        *config_util.URL
+	version    string // For write clients: "", "1.0" or "1.1", ignored for read clients
 	Client     *http.Client
 	timeout    time.Duration
 
@@ -95,6 +96,7 @@ type Client struct {
 // ClientConfig configures a client.
 type ClientConfig struct {
 	URL              *config_util.URL
+	Version          string // For write clients "", "1.0" or "1.1", ignored for read clients
 	Timeout          model.Duration
 	HTTPClientConfig config_util.HTTPClientConfig
 	SigV4Config      *sigv4.SigV4Config
@@ -156,6 +158,7 @@ func NewWriteClient(name string, conf *ClientConfig) (WriteClient, error) {
 	return &Client{
 		remoteName:       name,
 		url:              conf.URL,
+		version:          conf.Version,
 		Client:           httpClient,
 		retryOnRateLimit: conf.RetryOnRateLimit,
 		timeout:          time.Duration(conf.Timeout),
@@ -198,7 +201,11 @@ func (c *Client) Store(ctx context.Context, req []byte) error {
 	httpReq.Header.Add("Content-Encoding", "snappy")
 	httpReq.Header.Set("Content-Type", "application/x-protobuf")
 	httpReq.Header.Set("User-Agent", UserAgent)
-	httpReq.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	if c.version == "1.1" {
+		httpReq.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.1") // TODOALEXG - check?
+	} else {
+		httpReq.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
@@ -215,6 +222,8 @@ func (c *Client) Store(ctx context.Context, req []byte) error {
 		io.Copy(io.Discard, httpResp.Body)
 		httpResp.Body.Close()
 	}()
+
+	// TODOALEXG - handle a 1.1 request that needs to be resubmitted as a 1.0 request
 
 	if httpResp.StatusCode/100 != 2 {
 		scanner := bufio.NewScanner(io.LimitReader(httpResp.Body, maxErrMsgLen))
@@ -257,6 +266,11 @@ func (c Client) Name() string {
 // Endpoint is the remote read or write endpoint.
 func (c Client) Endpoint() string {
 	return c.url.String()
+}
+
+// Version is the remote write version
+func (c Client) Version() string {
+	return c.version
 }
 
 // Read reads from a remote endpoint.
@@ -353,4 +367,8 @@ func (c *TestClient) Name() string {
 
 func (c *TestClient) Endpoint() string {
 	return c.url
+}
+
+func (c *TestClient) Version() string {
+	return ""
 }

@@ -48,10 +48,15 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var req *prompb.WriteRequest
 	if h.internFormat {
+		// TODOALEXG - check header if 1.1 is present then try to use decode that version
+		// if 1.1 decoding fails:
+		//	try to use 1.0 format and log something
+		//	if that worked then use the data or throw it away and 4xx them because they forgot the header?
 		var redReq *prompb.WriteRequestWithRefs
 		redReq, err = DecodeReducedWriteRequest(r.Body)
 		if err == nil {
 			req, err = ReducedWriteRequestToWriteRequest(redReq)
+			// TODOALEXG - are we throwing away the metadata here?
 		}
 	} else {
 		req, err = DecodeWriteRequest(r.Body)

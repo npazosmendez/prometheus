@@ -680,5 +680,6 @@ func ReducedWriteRequestToWriteRequest(redReq *prompb.WriteRequestWithRefs) (*pr
 		req.Timeseries[i].Histograms = rts.Histograms
 
 	}
+	// TODOALEXG - what about the metadata?
 	return req, nil
 }

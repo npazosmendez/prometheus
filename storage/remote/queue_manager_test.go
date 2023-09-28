@@ -848,6 +848,10 @@ func (c *TestWriteClient) Endpoint() string {
 	return "http://test-remote.com/1234"
 }
 
+func (c *TestWriteClient) Version() string {
+	return ""
+}
+
 // TestBlockingWriteClient is a queue_manager WriteClient which will block
 // on any calls to Store(), until the request's Context is cancelled, at which
 // point the `numCalls` property will contain a count of how many times Store()
@@ -878,6 +882,10 @@ func (c *TestBlockingWriteClient) Endpoint() string {
 	return "http://test-remote-blocking.com/1234"
 }
 
+func (c *TestBlockingWriteClient) Version() string {
+	return ""
+}
+
 // For benchmarking the send and not the receive side.
 type NopWriteClient struct{}
 
@@ -885,6 +893,7 @@ func NewNopWriteClient() *NopWriteClient                            { return &No
 func (c *NopWriteClient) Store(_ context.Context, req []byte) error { return nil }
 func (c *NopWriteClient) Name() string                              { return "nopwriteclient" }
 func (c *NopWriteClient) Endpoint() string                          { return "http://test-remote.com/1234" }
+func (c *NopWriteClient) Version() string                           { return "" }
 
 func BenchmarkSampleSend(b *testing.B) {
 	// Send one sample per series, which is the typical remote_write case

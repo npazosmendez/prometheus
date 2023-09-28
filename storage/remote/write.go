@@ -163,6 +163,7 @@ func (rws *WriteStorage) ApplyConfig(conf *config.Config) error {
 		} else {
 			c, err = NewWriteClient(name, &ClientConfig{
 				URL:              rwConf.URL,
+				Version:          rwConf.Version,
 				Timeout:          rwConf.RemoteTimeout,
 				HTTPClientConfig: rwConf.HTTPClientConfig,
 				SigV4Config:      rwConf.SigV4Config,
