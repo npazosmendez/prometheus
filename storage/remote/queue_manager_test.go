@@ -126,7 +126,6 @@ func TestSampleDelivery(t *testing.T) {
 			hash, err := toHash(writeConfig)
 			require.NoError(t, err)
 			qm := s.rws.queues[hash]
-			// time.Sleep(1 * time.Second)
 
 			c := NewTestWriteClient()
 			qm.SetClient(c)
