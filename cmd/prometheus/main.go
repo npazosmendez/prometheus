@@ -241,12 +241,6 @@ func (c *flagConfig) setFeatureListOptions(logger log.Logger) error {
 			case "rw-compression-zstd-bestcomp":
 				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "zstd-bestcomp")
 				remote.UseAlgorithm = remote.ZstdBestComp
-			case "rw-compression-gzip-fast":
-				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "gzip-fast")
-				remote.UseAlgorithm = remote.GzipFast
-			case "rw-compression-gzip-comp":
-				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "gzip-comp")
-				remote.UseAlgorithm = remote.GzipComp
 			case "rw-compression-lzw":
 				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "lzw")
 				remote.UseAlgorithm = remote.Lzw
