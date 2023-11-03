@@ -247,6 +247,9 @@ func (c *flagConfig) setFeatureListOptions(logger log.Logger) error {
 			case "rw-compression-flate-fast":
 				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "flate-fast")
 				remote.UseAlgorithm = remote.FlateFast
+			case "rw-compression-flate-default":
+				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "flate-default")
+				remote.UseAlgorithm = remote.FlateDefault
 			case "rw-compression-flate-comp":
 				level.Info(logger).Log("msg", "compression algorithm configured", "algo", "flate-comp")
 				remote.UseAlgorithm = remote.FlateComp
