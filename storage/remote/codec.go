@@ -825,8 +825,6 @@ func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []u
 	// if cap(result)-len(result) < length*2 {
 	// 	result = append(make([]uint32, 0, length*2), result...)
 	// }
-	l := len(lbls)
-	println(l)
 
 	lbls.Range(func(l labels.Label) {
 		result = append(result, symbolTable.Ref(l.Name))
