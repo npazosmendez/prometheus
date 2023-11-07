@@ -18,9 +18,9 @@ import (
 	"errors"
 	"math"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -1871,7 +1871,7 @@ func buildReducedWriteRequest(samples []prompb.ReducedTimeSeries, labels map[uin
 }
 
 type rwSymbolTable struct {
-	symbols    strings.Builder
+	symbols    []byte
 	symbolsMap map[string]uint32
 }
 
@@ -1886,21 +1886,26 @@ func (r *rwSymbolTable) Ref(str string) uint32 {
 	if ref, ok := r.symbolsMap[str]; ok {
 		return ref
 	}
-	r.symbolsMap[str] = packRef(r.symbols.Len(), len(str))
-	r.symbols.WriteString(str)
+	// NOTE(njpm): save the ref to return to avoid an extra lookup
+	ref := packRef(len(r.symbols), len(str))
+	r.symbols = append(r.symbols, str...)
+	r.symbolsMap[str] = ref
 
-	return r.symbolsMap[str]
+	return ref
 }
 
 func (r *rwSymbolTable) LabelsString() string {
-	return r.symbols.String()
+	// return r.symbols.String()
+	// NOTE(njpm): use a plain buffer and read it as a string so we can reuse it.
+	// strings.Builder.Reset() does not keep the underlying buffer.
+	return *((*string)(unsafe.Pointer(&r.symbols)))
 }
 
 func (r *rwSymbolTable) clear() {
 	for k := range r.symbolsMap {
 		delete(r.symbolsMap, k)
 	}
-	r.symbols.Reset()
+	r.symbols = r.symbols[:0]
 }
 
 func buildMinimizedWriteRequest(samples []prompb.MinimizedTimeSeries, labels string, pBuf *proto.Buffer, buf *[]byte) ([]byte, int64, error) {
