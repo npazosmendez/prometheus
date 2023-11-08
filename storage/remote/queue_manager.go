@@ -1872,26 +1872,25 @@ func buildReducedWriteRequest(samples []prompb.ReducedTimeSeries, labels map[uin
 
 type rwSymbolTable struct {
 	symbols    []byte
-	symbolsMap map[string]uint32
+	symbolsMap map[string]uint64
 }
 
 func newRwSymbolTable() rwSymbolTable {
 	return rwSymbolTable{
-		symbolsMap: make(map[string]uint32),
+		symbolsMap: make(map[string]uint64),
 	}
 }
 
-func (r *rwSymbolTable) Ref(str string) uint32 {
+func (r *rwSymbolTable) Ref(str string) (off uint32, leng uint32) {
 	// todo, check for overflowing the uint32 based on documented format?
-	if ref, ok := r.symbolsMap[str]; ok {
-		return ref
+	if offlen, ok := r.symbolsMap[str]; ok {
+		return unpackRef64(offlen)
+		// return ref
 	}
-	// NOTE(njpm): save the ref to return to avoid an extra lookup
-	ref := packRef(len(r.symbols), len(str))
+	off, leng = uint32(len(r.symbols)), uint32(len(str))
 	r.symbols = append(r.symbols, str...)
-	r.symbolsMap[str] = ref
-
-	return ref
+	r.symbolsMap[str] = packRef64(off, leng)
+	return
 }
 
 func (r *rwSymbolTable) LabelsString() string {
