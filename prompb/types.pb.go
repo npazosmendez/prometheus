@@ -9,6 +9,7 @@ import (
 	io "io"
 	math "math"
 	math_bits "math/bits"
+	"slices"
 
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
@@ -2348,19 +2349,36 @@ func (m *MinimizedTimeSeries) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 	}
 	if len(m.LabelSymbols) > 0 {
-		dAtA11 := make([]byte, len(m.LabelSymbols)*10)
+		// The code below but inplace
 		var j10 int
+		start := i
 		for _, num := range m.LabelSymbols {
 			for num >= 1<<7 {
-				dAtA11[j10] = uint8(uint64(num)&0x7f | 0x80)
+				dAtA[i-1] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
+				i--
 				j10++
 			}
-			dAtA11[j10] = uint8(num)
+			dAtA[i-1] = uint8(num)
+			i--
 			j10++
 		}
-		i -= j10
-		copy(dAtA[i:], dAtA11[:j10])
+		slices.Reverse(dAtA[i : start])
+
+		// dAtA11 := make([]byte, len(m.LabelSymbols)*10)
+		// var j10 int
+		// for _, num := range m.LabelSymbols {
+		// 	for num >= 1<<7 {
+		// 		dAtA11[j10] = uint8(uint64(num)&0x7f | 0x80)
+		// 		num >>= 7
+		// 		j10++
+		// 	}
+		// 	dAtA11[j10] = uint8(num)
+		// 	j10++
+		// }
+		// i -= j10
+		// copy(dAtA[i:], dAtA11[:j10])
+
 		i = encodeVarintTypes(dAtA, i, uint64(j10))
 		i--
 		dAtA[i] = 0xa
