@@ -820,8 +820,10 @@ func labelsToLabelRefsProto(lbls labels.Labels, pool *lookupPool, buf []prompb.L
 func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
-		result = append(result, symbolTable.Ref(l.Name))
-		result = append(result, symbolTable.Ref(l.Value))
+		off, leng := symbolTable.Ref(l.Name)
+		result = append(result, off, leng)
+		off, leng = symbolTable.Ref(l.Value)
+		result = append(result, off, leng)
 	})
 	return result
 }
@@ -832,15 +834,18 @@ func Uint32RefToLabels(symbols string, minLabels []uint32) labels.Labels {
 	labelIdx := 0
 	for labelIdx < len(minLabels) {
 		// todo, check for overflow?
-		offset, length := unpackRef(minLabels[labelIdx])
-
+		offset := minLabels[labelIdx]
+		labelIdx++
+		length := minLabels[labelIdx]
+		labelIdx++
 		name := symbols[offset : offset+length]
 		// todo, check for overflow?
-		offset, length = unpackRef(minLabels[labelIdx+1])
-
+		offset = minLabels[labelIdx]
+		labelIdx++
+		length = minLabels[labelIdx]
+		labelIdx++
 		value := symbols[offset : offset+length]
 		ls.Add(name, value)
-		labelIdx += 2
 	}
 
 	return ls.Labels()
@@ -1015,4 +1020,13 @@ func packRef(offset, length int) uint32 {
 
 func unpackRef(ref uint32) (offset, length int) {
 	return int(ref>>12) & 0xFFFFF, int(ref & 0xFFF)
+}
+
+// for use with minimized remote write proto format
+func packRef64(offset, length uint32) uint64 {
+	return uint64(offset)<<32 | uint64(length)
+}
+
+func unpackRef64(ref uint64) (offset, length uint32) {
+	return uint32(ref >> 32), uint32(ref & 0xFFFFFFFF)
 }
