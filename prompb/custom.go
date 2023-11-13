@@ -46,7 +46,7 @@ func (m *MinimizedWriteRequest) OptimizedMarshal(dst []byte) ([]byte, error) {
 	}
 	dst = dst[:siz]
 
-	n, err := m.OptimizedMarshalToSizedBuffer(dst)
+	n, err := m.MarshalToSizedBuffer(dst)
 	if err != nil {
 		return nil, err
 	}

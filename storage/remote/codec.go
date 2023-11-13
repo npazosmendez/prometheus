@@ -785,33 +785,33 @@ func labelsToLabelsProto(lbls labels.Labels, buf []prompb.Label) []prompb.Label 
 	return result
 }
 
-func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
+func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []byte) []byte {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
 		off := symbolTable.Ref(l.Name)
-		result = append(result, off)
+		result = binary.AppendUvarint(result, uint64(off))
 		off = symbolTable.Ref(l.Value)
-		result = append(result, off)
+		result = binary.AppendUvarint(result, uint64(off))
 	})
 	return result
 }
 
-func Uint32RefToLabels(symbols []byte, minLabels []uint32) labels.Labels {
+func Uint32RefToLabels(symbols []byte, minLabels []byte) labels.Labels {
 	ls := labels.NewScratchBuilder(len(minLabels) / 2)
 
-	labelIdx := 0
-	for labelIdx < len(minLabels) {
+	for len(minLabels) > 0 {
 		// todo, check for overflow?
-		offset := minLabels[labelIdx]
-		labelIdx++
+		offset, n := binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
+
 		length, n := binary.Uvarint(symbols[offset:])
-		offset += uint32(n)
+		offset += uint64(n)
 		name := symbols[offset : uint64(offset)+length]
 
-		offset = minLabels[labelIdx]
-		labelIdx++
+		offset, n = binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
 		length, n = binary.Uvarint(symbols[offset:])
-		offset += uint32(n)
+		offset += uint64(n)
 		value := symbols[offset : uint64(offset)+length]
 		ls.Add(yoloString(name), yoloString(value))
 	}
