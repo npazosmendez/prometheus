@@ -15,6 +15,7 @@ package remote
 
 import (
 	"compress/gzip"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -786,15 +788,15 @@ func labelsToLabelsProto(lbls labels.Labels, buf []prompb.Label) []prompb.Label 
 func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
-		off, leng := symbolTable.Ref(l.Name)
-		result = append(result, off, leng)
-		off, leng = symbolTable.Ref(l.Value)
-		result = append(result, off, leng)
+		off := symbolTable.Ref(l.Name)
+		result = append(result, off)
+		off = symbolTable.Ref(l.Value)
+		result = append(result, off)
 	})
 	return result
 }
 
-func Uint32RefToLabels(symbols string, minLabels []uint32) labels.Labels {
+func Uint32RefToLabels(symbols []byte, minLabels []uint32) labels.Labels {
 	ls := labels.NewScratchBuilder(len(minLabels) / 2)
 
 	labelIdx := 0
@@ -802,19 +804,23 @@ func Uint32RefToLabels(symbols string, minLabels []uint32) labels.Labels {
 		// todo, check for overflow?
 		offset := minLabels[labelIdx]
 		labelIdx++
-		length := minLabels[labelIdx]
-		labelIdx++
-		name := symbols[offset : offset+length]
-		// todo, check for overflow?
+		length, n := binary.Uvarint(symbols[offset:])
+		offset += uint32(n)
+		name := symbols[offset : uint64(offset)+length]
+
 		offset = minLabels[labelIdx]
 		labelIdx++
-		length = minLabels[labelIdx]
-		labelIdx++
-		value := symbols[offset : offset+length]
-		ls.Add(name, value)
+		length, n = binary.Uvarint(symbols[offset:])
+		offset += uint32(n)
+		value := symbols[offset : uint64(offset)+length]
+		ls.Add(yoloString(name), yoloString(value))
 	}
 
 	return ls.Labels()
+}
+
+func yoloString(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
 }
 
 // metricTypeToMetricTypeProto transforms a Prometheus metricType into prompb metricType. Since the former is a string we need to transform it to an enum.

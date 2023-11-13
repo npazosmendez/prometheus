@@ -37,7 +37,7 @@ message MinimizedWriteRequest {
   reserved  3;
   // The symbols table. All symbols are concatenated strings. To read the symbols table, it's required
   // to know the offset:length range of the actual symbol to read from this string.
-  string symbols = 4;
+  bytes symbols = 4;
 }
 
 // ReadRequest represents a remote read request.

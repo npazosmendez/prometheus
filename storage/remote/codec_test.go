@@ -85,8 +85,8 @@ var writeRequestMinimizedFixture = func() *prompb.MinimizedWriteRequest {
 		"d", "e",
 		"foo", "bar",
 	} {
-		off, len := st.Ref(s)
-		labels = append(labels, off, len)
+		off := st.Ref(s)
+		labels = append(labels, off)
 	}
 	return &prompb.MinimizedWriteRequest{
 		Timeseries: []prompb.MinimizedTimeSeries{
@@ -103,7 +103,7 @@ var writeRequestMinimizedFixture = func() *prompb.MinimizedWriteRequest {
 				Histograms:   []prompb.Histogram{HistogramToHistogramProto(2, &testHistogram), FloatHistogramToHistogramProto(3, testHistogram.ToFloat())},
 			},
 		},
-		Symbols: st.LabelsString(),
+		Symbols: st.LabelsData(),
 	}
 }()
 
