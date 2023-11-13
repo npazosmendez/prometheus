@@ -15,6 +15,7 @@ package remote
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"testing"
@@ -77,7 +78,7 @@ var writeRequestFixture = &prompb.WriteRequest{
 // writeRequestMinimizedFixture represents the same request as writeRequestFixture, but using the minimized representation.
 var writeRequestMinimizedFixture = func() *prompb.MinimizedWriteRequest {
 	st := newRwSymbolTable()
-	labels := []uint32{}
+	labels := []byte{}
 	for _, s := range []string{
 		"__name__", "test_metric1",
 		"b", "c",
@@ -85,8 +86,9 @@ var writeRequestMinimizedFixture = func() *prompb.MinimizedWriteRequest {
 		"d", "e",
 		"foo", "bar",
 	} {
-		off, len := st.Ref(s)
-		labels = append(labels, off, len)
+		off, leng := st.Ref(s)
+		binary.AppendUvarint(labels, uint64(off))
+		binary.AppendUvarint(labels, uint64(leng))
 	}
 	return &prompb.MinimizedWriteRequest{
 		Timeseries: []prompb.MinimizedTimeSeries{

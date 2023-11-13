@@ -15,6 +15,7 @@ package remote
 
 import (
 	"compress/gzip"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -783,36 +784,54 @@ func labelsToLabelsProto(lbls labels.Labels, buf []prompb.Label) []prompb.Label 
 	return result
 }
 
-func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
+func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []byte) []byte {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
 		off, leng := symbolTable.Ref(l.Name)
-		result = append(result, off, leng)
+		result = binary.AppendUvarint(result, uint64(off))
+		result = binary.AppendUvarint(result, uint64(leng))
 		off, leng = symbolTable.Ref(l.Value)
-		result = append(result, off, leng)
+		result = binary.AppendUvarint(result, uint64(off))
+		result = binary.AppendUvarint(result, uint64(leng))
 	})
 	return result
 }
 
-func Uint32RefToLabels(symbols string, minLabels []uint32) labels.Labels {
+func Uint32RefToLabels(symbols string, minLabels []byte) labels.Labels {
 	ls := labels.NewScratchBuilder(len(minLabels) / 2)
 
-	labelIdx := 0
-	for labelIdx < len(minLabels) {
+	for len(minLabels) > 0 {
 		// todo, check for overflow?
-		offset := minLabels[labelIdx]
-		labelIdx++
-		length := minLabels[labelIdx]
-		labelIdx++
+		offset, n := binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
+		length, n := binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
 		name := symbols[offset : offset+length]
 		// todo, check for overflow?
-		offset = minLabels[labelIdx]
-		labelIdx++
-		length = minLabels[labelIdx]
-		labelIdx++
+		offset, n = binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
+		length, n = binary.Uvarint(minLabels)
+		minLabels = minLabels[n:]
 		value := symbols[offset : offset+length]
 		ls.Add(name, value)
 	}
+
+	// labelIdx := 0
+	// for labelIdx < len(minLabels) {
+	// 	// todo, check for overflow?
+	// 	offset := minLabels[labelIdx]
+	// 	labelIdx++
+	// 	length := minLabels[labelIdx]
+	// 	labelIdx++
+	// 	name := symbols[offset : offset+length]
+	// 	// todo, check for overflow?
+	// 	offset = minLabels[labelIdx]
+	// 	labelIdx++
+	// 	length = minLabels[labelIdx]
+	// 	labelIdx++
+	// 	value := symbols[offset : offset+length]
+	// 	ls.Add(name, value)
+	// }
 
 	return ls.Labels()
 }

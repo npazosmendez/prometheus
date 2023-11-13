@@ -132,9 +132,10 @@ message TimeSeries {
 
 // based on an experiment by marco
 message MinimizedTimeSeries {
-  // Sorted list of label name-value pair references. This list's len is always multiple of 4,
-  // packing tuples of (label name offset, label name length, label value offset, label value length).
-  repeated uint32 label_symbols = 1 [(gogoproto.nullable) = false];
+  // Sorted list of label name-value pair references, encoded as varints. This
+  // list's real len is always multiple of 4, packing tuples of (label name offset,
+  // label name length, label value offset, label value length).
+  bytes label_symbols = 1;
 
   // Sorted by time, oldest sample first.
   // TODO: support references for other types
