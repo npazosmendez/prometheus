@@ -3,7 +3,6 @@ package remote
 import (
 	"bytes"
 	"compress/lzw"
-	"fmt"
 	"io"
 	"sync"
 
@@ -131,17 +130,10 @@ func (s *snappyCompression) Compress(data []byte) ([]byte, error) {
 	if n := snappy.MaxEncodedLen(len(data)); n > cap(s.buf) {
 		s.buf = make([]byte, n)
 	}
-	uncompressed, err := snappy.Decode(nil, compressed)
-	if err != nil {
-		fmt.Println("error uncompressing immediately after compressing")
-	}
-	fmt.Println("len uncompressed: ", len(uncompressed))
-	fmt.Println("returning snappy compressed data")
 	return compressed, nil
 }
 func (s *snappyCompression) Decompress(data []byte) ([]byte, error) {
 	s.buf = s.buf[0:cap(s.buf)]
-	fmt.Println("len data: ", len(data))
 	uncompressed, err := snappy.Decode(s.buf, data)
 	if len(uncompressed) > cap(s.buf) {
 		s.buf = uncompressed

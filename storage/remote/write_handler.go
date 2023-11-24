@@ -83,10 +83,10 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch h.rwFormat {
 	case Base1:
 		req, err = DecodeWriteRequest(r.Body, &h.comp)
-		//case Min32Optimized:
-		//	reqMin, err = DecodeMinimizedWriteRequest(r.Body, &h.comp)
-		//case MinLen:
-		//	reqMinLen, err = DecodeMinimizedWriteRequestLen(r.Body)
+	case Min32Optimized:
+		reqMin, err = DecodeMinimizedWriteRequest(r.Body, &h.comp)
+	case MinLen:
+		reqMinLen, err = DecodeMinimizedWriteRequestLen(r.Body, &h.comp)
 	}
 
 	if err != nil {

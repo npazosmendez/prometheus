@@ -607,6 +607,7 @@ func main() {
 		remoteStorage = remote.NewStorage(log.With(logger, "component", "remote"), prometheus.DefaultRegisterer, localStorage.StartTime, localStoragePath, time.Duration(cfg.RemoteFlushDeadline), scraper, remote.RemoteWriteFormat(cfg.rwFormat), remote.RemoteWriteCompression(cfg.rwCompression))
 		fanoutStorage = storage.NewFanout(logger, localStorage, remoteStorage)
 	)
+	cfg.web.RemoteWriteCompression = remote.RemoteWriteCompression(cfg.rwCompression)
 
 	var (
 		ctxWeb, cancelWeb = context.WithCancel(context.Background())

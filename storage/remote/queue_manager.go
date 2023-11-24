@@ -556,7 +556,7 @@ func (t *QueueManager) AppendMetadata(ctx context.Context, metadata []scrape.Met
 
 func (t *QueueManager) sendMetadataWithBackoff(ctx context.Context, metadata []prompb.MetricMetadata, pBuf *proto.Buffer) error {
 	// Build the WriteRequest with no samples.
-	req, _, err := buildWriteRequest(nil, metadata, pBuf, t.compressor.GetPooledCompressor())
+	req, _, err := buildWriteRequest(nil, metadata, pBuf, t.compressor)
 	if err != nil {
 		return err
 	}
