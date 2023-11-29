@@ -15,7 +15,6 @@ package remote
 
 import (
 	"compress/gzip"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"unsafe"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -776,73 +774,31 @@ func labelsToLabelsProto(lbls labels.Labels, buf []prompb.Label) []prompb.Label 
 	return result
 }
 
-func labelsToUint32Slice(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
+// TODO
+func labelsToUint32SliceStr(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
 	result := buf[:0]
 	lbls.Range(func(l labels.Label) {
-		off, leng := symbolTable.Ref(l.Name)
-		result = append(result, off, leng)
-		off, leng = symbolTable.Ref(l.Value)
-		result = append(result, off, leng)
-	})
-	return result
-}
-
-func labelsToUint32SliceLen(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
-	result := buf[:0]
-	lbls.Range(func(l labels.Label) {
-		off := symbolTable.RefLen(l.Name)
+		off := symbolTable.RefStr(l.Name)
 		result = append(result, off)
-		off = symbolTable.RefLen(l.Value)
+		off = symbolTable.RefStr(l.Value)
 		result = append(result, off)
 	})
 	return result
 }
 
-func Uint32LenRefToLabels(symbols []byte, minLabels []uint32) labels.Labels {
+// TODO
+func Uint32StrRefToLabels(symbols []string, minLabels []uint32) labels.Labels {
 	ls := labels.NewScratchBuilder(len(minLabels) / 2)
 
-	labelIdx := 0
-	for labelIdx < len(minLabels) {
+	strIdx := 0
+	for strIdx < len(minLabels) {
 		// todo, check for overflow?
-		offset := minLabels[labelIdx]
-		labelIdx++
-		length, n := binary.Uvarint(symbols[offset:])
-		offset += uint32(n)
-		name := symbols[offset : uint64(offset)+length]
+		nameIdx := minLabels[strIdx]
+		strIdx++
+		valueIdx := minLabels[strIdx]
+		strIdx++
 
-		offset = minLabels[labelIdx]
-		labelIdx++
-		length, n = binary.Uvarint(symbols[offset:])
-		offset += uint32(n)
-		value := symbols[offset : uint64(offset)+length]
-		ls.Add(yoloString(name), yoloString(value))
-	}
-
-	return ls.Labels()
-}
-
-func yoloString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-func Uint32RefToLabels(symbols string, minLabels []uint32) labels.Labels {
-	ls := labels.NewScratchBuilder(len(minLabels) / 2)
-
-	labelIdx := 0
-	for labelIdx < len(minLabels) {
-		// todo, check for overflow?
-		offset := minLabels[labelIdx]
-		labelIdx++
-		length := minLabels[labelIdx]
-		labelIdx++
-		name := symbols[offset : offset+length]
-		// todo, check for overflow?
-		offset = minLabels[labelIdx]
-		labelIdx++
-		length = minLabels[labelIdx]
-		labelIdx++
-		value := symbols[offset : offset+length]
-		ls.Add(name, value)
+		ls.Add(symbols[nameIdx], symbols[valueIdx])
 	}
 
 	return ls.Labels()
@@ -933,9 +889,7 @@ func DecodeOTLPWriteRequest(r *http.Request) (pmetricotlp.ExportRequest, error) 
 	return otlpReq, nil
 }
 
-// DecodeMinimizedWriteRequest from an io.Reader into a prompb.WriteRequest, handling
-// snappy decompression.
-func DecodeMinimizedWriteRequest(r io.Reader) (*prompb.MinimizedWriteRequest, error) {
+func DecodeMinimizedWriteRequestStr(r io.Reader) (*prompb.MinimizedWriteRequestStr, error) {
 	compressed, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -946,7 +900,7 @@ func DecodeMinimizedWriteRequest(r io.Reader) (*prompb.MinimizedWriteRequest, er
 		return nil, err
 	}
 
-	var req prompb.MinimizedWriteRequest
+	var req prompb.MinimizedWriteRequestStr
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
 		return nil, err
 	}
@@ -954,33 +908,14 @@ func DecodeMinimizedWriteRequest(r io.Reader) (*prompb.MinimizedWriteRequest, er
 	return &req, nil
 }
 
-func DecodeMinimizedWriteRequestLen(r io.Reader) (*prompb.MinimizedWriteRequestLen, error) {
-	compressed, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
-	reqBuf, err := snappy.Decode(nil, compressed)
-	if err != nil {
-		return nil, err
-	}
-
-	var req prompb.MinimizedWriteRequestLen
-	if err := proto.Unmarshal(reqBuf, &req); err != nil {
-		return nil, err
-	}
-
-	return &req, nil
-}
-
-func MinimizedWriteRequestToWriteRequest(redReq *prompb.MinimizedWriteRequest) (*prompb.WriteRequest, error) {
+func MinimizedWriteRequestToWriteRequest(redReq *prompb.MinimizedWriteRequestStr) (*prompb.WriteRequest, error) {
 	req := &prompb.WriteRequest{
 		Timeseries: make([]prompb.TimeSeries, len(redReq.Timeseries)),
 		// TODO handle metadata?
 	}
 
 	for i, rts := range redReq.Timeseries {
-		Uint32RefToLabels(redReq.Symbols, rts.LabelSymbols).Range(func(l labels.Label) {
+		Uint32StrRefToLabels(redReq.Symbols, rts.LabelSymbols).Range(func(l labels.Label) {
 			req.Timeseries[i].Labels = append(req.Timeseries[i].Labels, prompb.Label{
 				Name:  l.Name,
 				Value: l.Value,

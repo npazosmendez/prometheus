@@ -40,7 +40,7 @@ func (r *ChunkedReadResponse) PooledMarshal(p *sync.Pool) ([]byte, error) {
 	return r.Marshal()
 }
 
-func (m *MinimizedWriteRequest) OptimizedMarshal(dst []byte) ([]byte, error) {
+func (m *MinimizedWriteRequestStr) OptimizedMarshal(dst []byte) ([]byte, error) {
 	siz := m.Size()
 	if cap(dst) < siz {
 		dst = make([]byte, siz)
@@ -56,7 +56,7 @@ func (m *MinimizedWriteRequest) OptimizedMarshal(dst []byte) ([]byte, error) {
 
 // OptimizedMarshalToSizedBuffer is mostly a copy of the generated MarshalToSizedBuffer,
 // but calls OptimizedMarshalToSizedBuffer on the timeseries.
-func (m *MinimizedWriteRequest) OptimizedMarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MinimizedWriteRequestStr) OptimizedMarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -66,11 +66,13 @@ func (m *MinimizedWriteRequest) OptimizedMarshalToSizedBuffer(dAtA []byte) (int,
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
 	if len(m.Symbols) > 0 {
-		i -= len(m.Symbols)
-		copy(dAtA[i:], m.Symbols)
-		i = encodeVarintRemote(dAtA, i, uint64(len(m.Symbols)))
-		i--
-		dAtA[i] = 0x22
+		for iNdEx := len(m.Symbols) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Symbols[iNdEx])
+			copy(dAtA[i:], m.Symbols[iNdEx])
+			i = encodeVarintRemote(dAtA, i, uint64(len(m.Symbols[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
 	}
 	if len(m.Timeseries) > 0 {
 		for iNdEx := len(m.Timeseries) - 1; iNdEx >= 0; iNdEx-- {
@@ -91,7 +93,7 @@ func (m *MinimizedWriteRequest) OptimizedMarshalToSizedBuffer(dAtA []byte) (int,
 
 // OptimizedMarshalToSizedBuffer is mostly a copy of the generated MarshalToSizedBuffer,
 // but marshals m.LabelSymbols in place without extra allocations.
-func (m *MinimizedTimeSeries) OptimizedMarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *MinimizedTimeSeriesStr) OptimizedMarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -142,6 +144,7 @@ func (m *MinimizedTimeSeries) OptimizedMarshalToSizedBuffer(dAtA []byte) (int, e
 			dAtA[i] = 0x12
 		}
 	}
+
 	if len(m.LabelSymbols) > 0 {
 		// This is the trick: encode the varints in reverse order to make it easier
 		// to do it in place. Then reverse the whole thing.
