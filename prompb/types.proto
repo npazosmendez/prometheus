@@ -54,6 +54,7 @@ message Exemplar {
   int64 timestamp = 3;
 }
 
+
 // A native histogram, also known as a sparse histogram.
 // Original design doc:
 // https://docs.google.com/document/d/1cLNv3aufPZb3fNfaJgdaRBZsInZKKIHo9E6HinJVbpM/edit
@@ -127,6 +128,19 @@ message TimeSeries {
   repeated Sample samples       = 2 [(gogoproto.nullable) = false];
   repeated Exemplar exemplars   = 3 [(gogoproto.nullable) = false];
   repeated Histogram histograms = 4 [(gogoproto.nullable) = false];
+}
+
+
+message MinimizedTimeSeriesStr {
+  // Sorted list of label name-value pair references, encoded as indices to a strings array.
+  // This list's len is always multiple of 2.
+  repeated uint32 label_symbols = 1 [(gogoproto.nullable) = false];
+
+  // Sorted by time, oldest sample first.
+  repeated Sample samples = 2 [(gogoproto.nullable) = false];
+  repeated Exemplar exemplars = 3 [(gogoproto.nullable) = false];
+  repeated Histogram histograms = 4 [(gogoproto.nullable) = false];
+  // TODO: add metadata
 }
 
 message Label {

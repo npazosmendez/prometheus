@@ -57,5 +57,39 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/receiveMinimized", func(w http.ResponseWriter, r *http.Request) {
+		req, err := remote.DecodeMinimizedWriteRequest(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		for _, ts := range req.Timeseries {
+			m := make(model.Metric, len(ts.LabelSymbols)/2)
+			labelIdx := 0
+
+			for labelIdx < len(ts.LabelSymbols) {
+				// todo, check for overflow?
+				offset := ts.LabelSymbols[labelIdx]
+				labelIdx++
+				length := ts.LabelSymbols[labelIdx]
+				labelIdx++
+				name := req.Symbols[offset : offset+length]
+				// todo, check for overflow?
+				offset = ts.LabelSymbols[labelIdx]
+				labelIdx++
+				length = ts.LabelSymbols[labelIdx]
+				labelIdx++
+				value := req.Symbols[offset : offset+length]
+				m[model.LabelName(name)] = model.LabelValue(value)
+			}
+			fmt.Println(m)
+
+			for _, s := range ts.Samples {
+				fmt.Printf("\tSample:  %f %d\n", s.Value, s.Timestamp)
+			}
+		}
+	})
+
 	log.Fatal(http.ListenAndServe(":1234", nil))
 }

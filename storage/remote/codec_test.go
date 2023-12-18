@@ -73,6 +73,39 @@ var writeRequestFixture = &prompb.WriteRequest{
 	},
 }
 
+// writeRequestMinimizedFixture represents the same request as writeRequestFixture, but using the minimized representation.
+var writeRequestMinimizedFixture = func() *prompb.MinimizedWriteRequestStr {
+	st := newRwSymbolTable()
+	var labels []uint32
+	for _, s := range []string{
+		"__name__", "test_metric1",
+		"b", "c",
+		"baz", "qux",
+		"d", "e",
+		"foo", "bar",
+	} {
+		ref := st.RefStr(s)
+		labels = append(labels, ref)
+	}
+	return &prompb.MinimizedWriteRequestStr{
+		Timeseries: []prompb.MinimizedTimeSeriesStr{
+			{
+				LabelSymbols: labels,
+				Samples:      []prompb.Sample{{Value: 1, Timestamp: 0}},
+				Exemplars:    []prompb.Exemplar{{Labels: []prompb.Label{{Name: "f", Value: "g"}}, Value: 1, Timestamp: 0}},
+				Histograms:   []prompb.Histogram{HistogramToHistogramProto(0, &testHistogram), FloatHistogramToHistogramProto(1, testHistogram.ToFloat())},
+			},
+			{
+				LabelSymbols: labels,
+				Samples:      []prompb.Sample{{Value: 2, Timestamp: 1}},
+				Exemplars:    []prompb.Exemplar{{Labels: []prompb.Label{{Name: "h", Value: "i"}}, Value: 2, Timestamp: 1}},
+				Histograms:   []prompb.Histogram{HistogramToHistogramProto(2, &testHistogram), FloatHistogramToHistogramProto(3, testHistogram.ToFloat())},
+			},
+		},
+		Symbols: st.LabelsStrings(),
+	}
+}()
+
 func TestValidateLabelsAndMetricName(t *testing.T) {
 	tests := []struct {
 		input       []prompb.Label
@@ -524,7 +557,17 @@ func TestDecodeWriteRequest(t *testing.T) {
 	require.Equal(t, writeRequestFixture, actual)
 }
 
-func TestNilHistogramProto(*testing.T) {
+func TestDecodeMinWriteRequest(t *testing.T) {
+	buf, _, err := buildMinimizedWriteRequestStr(writeRequestMinimizedFixture.Timeseries, writeRequestMinimizedFixture.Symbols, nil, nil)
+
+	require.NoError(t, err)
+
+	actual, err := DecodeMinimizedWriteRequestStr(bytes.NewReader(buf))
+	require.NoError(t, err)
+	require.Equal(t, writeRequestMinimizedFixture, actual)
+}
+
+func TestNilHistogramProto(t *testing.T) {
 	// This function will panic if it impromperly handles nil
 	// values, causing the test to fail.
 	HistogramProtoToHistogram(prompb.Histogram{})
@@ -841,4 +884,12 @@ func (c *mockChunkIterator) Next() bool {
 
 func (c *mockChunkIterator) Err() error {
 	return nil
+}
+
+func TestStrFormat(t *testing.T) {
+	r := newRwSymbolTable()
+	ls := labels.FromStrings("asdf", "qwer", "zxcv", "1234")
+	encoded := labelsToUint32SliceStr(ls, &r, nil)
+	decoded := Uint32StrRefToLabels(r.LabelsStrings(), encoded)
+	require.Equal(t, ls, decoded)
 }

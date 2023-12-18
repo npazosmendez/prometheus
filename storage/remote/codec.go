@@ -782,6 +782,36 @@ func labelsToLabelsProto(lbls labels.Labels, buf []prompb.Label) []prompb.Label 
 	return result
 }
 
+// TODO
+func labelsToUint32SliceStr(lbls labels.Labels, symbolTable *rwSymbolTable, buf []uint32) []uint32 {
+	result := buf[:0]
+	lbls.Range(func(l labels.Label) {
+		off := symbolTable.RefStr(l.Name)
+		result = append(result, off)
+		off = symbolTable.RefStr(l.Value)
+		result = append(result, off)
+	})
+	return result
+}
+
+// TODO
+func Uint32StrRefToLabels(symbols []string, minLabels []uint32) labels.Labels {
+	ls := labels.NewScratchBuilder(len(minLabels) / 2)
+
+	strIdx := 0
+	for strIdx < len(minLabels) {
+		// todo, check for overflow?
+		nameIdx := minLabels[strIdx]
+		strIdx++
+		valueIdx := minLabels[strIdx]
+		strIdx++
+
+		ls.Add(symbols[nameIdx], symbols[valueIdx])
+	}
+
+	return ls.Labels()
+}
+
 // metricTypeToMetricTypeProto transforms a Prometheus metricType into prompb metricType. Since the former is a string we need to transform it to an enum.
 func metricTypeToMetricTypeProto(t textparse.MetricType) prompb.MetricMetadata_MetricType {
 	mt := strings.ToUpper(string(t))
@@ -865,4 +895,52 @@ func DecodeOTLPWriteRequest(r *http.Request) (pmetricotlp.ExportRequest, error) 
 	}
 
 	return otlpReq, nil
+}
+
+func DecodeMinimizedWriteRequestStr(r io.Reader) (*prompb.MinimizedWriteRequestStr, error) {
+	compressed, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	reqBuf, err := snappy.Decode(nil, compressed)
+	if err != nil {
+		return nil, err
+	}
+
+	var req prompb.MinimizedWriteRequestStr
+	if err := proto.Unmarshal(reqBuf, &req); err != nil {
+		return nil, err
+	}
+
+	return &req, nil
+}
+
+func MinimizedWriteRequestToWriteRequest(redReq *prompb.MinimizedWriteRequestStr) (*prompb.WriteRequest, error) {
+	req := &prompb.WriteRequest{
+		Timeseries: make([]prompb.TimeSeries, len(redReq.Timeseries)),
+		// TODO handle metadata?
+	}
+
+	for i, rts := range redReq.Timeseries {
+		Uint32StrRefToLabels(redReq.Symbols, rts.LabelSymbols).Range(func(l labels.Label) {
+			req.Timeseries[i].Labels = append(req.Timeseries[i].Labels, prompb.Label{
+				Name:  l.Name,
+				Value: l.Value,
+			})
+		})
+
+		exemplars := make([]prompb.Exemplar, len(rts.Exemplars))
+		for j, e := range rts.Exemplars {
+			exemplars[j].Value = e.Value
+			exemplars[j].Timestamp = e.Timestamp
+			exemplars[j].Labels = e.Labels
+		}
+
+		req.Timeseries[i].Samples = rts.Samples
+		req.Timeseries[i].Exemplars = exemplars
+		req.Timeseries[i].Histograms = rts.Histograms
+
+	}
+	return req, nil
 }
