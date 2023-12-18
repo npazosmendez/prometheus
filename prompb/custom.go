@@ -15,8 +15,6 @@ package prompb
 
 import (
 	"sync"
-
-	"golang.org/x/exp/slices"
 )
 
 func (m Sample) T() int64   { return m.Timestamp }
@@ -161,7 +159,7 @@ func (m *MinimizedTimeSeriesStr) OptimizedMarshalToSizedBuffer(dAtA []byte) (int
 			i--
 			j10++
 		}
-		slices.Reverse(dAtA[i:start])
+		reverseBytes(dAtA[i:start])
 		// --- end of trick
 
 		i = encodeVarintTypes(dAtA, i, uint64(j10))
@@ -169,4 +167,10 @@ func (m *MinimizedTimeSeriesStr) OptimizedMarshalToSizedBuffer(dAtA []byte) (int
 		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
+}
+
+func reverseBytes(b []byte) {
+	for i := 0; i < len(b)/2; i++ {
+		b[i], b[len(b)-1-i] = b[len(b)-1-i], b[i]
+	}
 }
