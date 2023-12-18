@@ -185,8 +185,8 @@ func (ce *CircularExemplarStorage) Select(start, end int64, matchers ...[]*label
 		}
 	}
 
-	slices.SortFunc(ret, func(a, b exemplar.QueryResult) int {
-		return labels.Compare(a.SeriesLabels, b.SeriesLabels)
+	slices.SortFunc(ret, func(a, b exemplar.QueryResult) bool {
+		return labels.Compare(a.SeriesLabels, b.SeriesLabels) < 0
 	})
 
 	return ret, nil

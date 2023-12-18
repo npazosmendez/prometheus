@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -335,15 +334,11 @@ func (m *Manager) RuleGroups() []*Group {
 		rgs = append(rgs, g)
 	}
 
-	slices.SortFunc(rgs, func(a, b *Group) int {
-		fileCompare := strings.Compare(a.file, b.file)
-
-		// If its 0, then the file names are the same.
-		// Lets look at the group names in that case.
-		if fileCompare != 0 {
-			return fileCompare
+	slices.SortFunc(rgs, func(a, b *Group) bool {
+		if a.file != b.file {
+			return a.file < b.file
 		}
-		return strings.Compare(a.name, b.name)
+		return a.name < b.name
 	})
 
 	return rgs

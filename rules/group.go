@@ -268,11 +268,11 @@ func (g *Group) AlertingRules() []*AlertingRule {
 			alerts = append(alerts, alertingRule)
 		}
 	}
-	slices.SortFunc(alerts, func(a, b *AlertingRule) int {
+	slices.SortFunc(alerts, func(a, b *AlertingRule) bool {
 		if a.State() == b.State() {
-			return strings.Compare(a.Name(), b.Name())
+			return strings.Compare(a.Name(), b.Name()) == -1
 		}
-		return int(b.State() - a.State())
+		return int(b.State()-a.State()) == -1
 	})
 	return alerts
 }
